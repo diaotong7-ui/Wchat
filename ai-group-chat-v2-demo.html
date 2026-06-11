@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Wchat V2 · AI群聊演示</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+html, body { height:100%; font-family: -apple-system,"PingFang SC","Helvetica Neue",sans-serif; background:#ededed; }
+
+#app {
+  max-width:390px; height:100vh; margin:0 auto;
+  display:flex; flex-direction:column;
+  background:#ededed; position:relative; overflow:hidden;
+  box-shadow: 0 0 40px rgba(0,0,0,.18);
+}
+
+/* ===== Header ===== */
+.header {
+  flex-shrink:0; background:#f7f7f7;
+  padding:50px 16px 12px; display:flex; align-items:center; gap:10px;
+  border-bottom:1px solid #e0e0e0; position:relative; z-index:20;
+}
+.header-back { font-size:20px; color:#333; cursor:pointer; padding:4px 8px 4px 0; }
+.header-info { flex:1; }
+.header-name { font-size:17px; font-weight:600; color:#111; }
+.header-sub  { font-size:12px; color:#888; margin-top:2px; }
+.header-more { font-size:22px; color:#555; cursor:pointer; padding:4px; }
+
+/* ===== World State Bar (V2) ===== */
+.world-bar {
+  flex-shrink:0; background:rgba(255,255,255,0.95);
+  border-bottom:1px solid #e8e8e8; padding:8px 16px;
+  display:flex; align-items:center; gap:12px; font-size:12px; color:#555;
+  overflow-x:auto; white-space:nowrap;
+}
+.world-bar::-webkit-scrollbar { display:none; }
+.ws-item { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+.ws-icon { font-size:14px; }
+.ws-dot { width:3px; height:3px; border-radius:50%; background:#ccc; flex-shrink:0; }
+.ws-event-tag {
+  background:linear-gradient(135deg,#667eea,#764ba2); color:#fff;
+  padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500;
+  flex-shrink:0;
+}
+
+/* ===== Event Banner ===== */
+.event-banner {
+  flex-shrink:0;
+  background:linear-gradient(135deg, #ff8c42 0%, #ff5f6d 100%);
+  color:#fff; font-size:12.5px; padding:8px 16px;
+  display:flex; align-items:center; gap:6px;
+  transition: all 0.4s ease; min-height:34px;
+}
+.event-banner.hidden { height:0; min-height:0; padding:0 16px; overflow:hidden; }
+.event-icon { font-size:15px; }
+
+/* ===== Messages ===== */
+.msg-list {
+  flex:1; overflow-y:auto; padding:16px 10px;
+  display:flex; flex-direction:column; gap:18px;
+  scroll-behavior:smooth;
+}
+.msg-list::-webkit-scrollbar { width:0; }
+
+.time-divider {
+  text-align:center; font-size:11px; color:#aaa;
+  background:rgba(0,0,0,.04); border-radius:12px;
+  padding:3px 10px; align-self:center;
+}
+
+.msg-row { display:flex; gap:8px; align-items:flex-start; }
+.msg-row.me { flex-direction:row-reverse; }
+.msg-row.system { justify-content:center; }
+
+.avatar {
+  width:40px; height:40px; border-radius:50%; background:#e0e0e0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; flex-shrink:0; position:relative;
+}
+.avatar .ai-badge {
+  position:absolute; bottom:-1px; right:-1px;
+  width:13px; height:13px; border-radius:50%;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  border:2px solid #ededed;
+  display:flex; align-items:center; justify-content:center;
+  font-size:7px; color:#fff;
+}
+
+.bubble-wrap { max-width:70%; display:flex; flex-direction:column; gap:4px; }
+.msg-row.me .bubble-wrap { align-items:flex-end; }
+
+.sender-name { font-size:11px; color:#999; padding:0 4px; }
+.msg-row.me .sender-name { display:none; }
+
+.bubble {
+  padding:10px 14px; border-radius:18px; font-size:15px;
+  line-height:1.5; word-break:break-word; position:relative;
+}
+.msg-row:not(.me) .bubble { background:#fff; color:#111; border-top-left-radius:6px; }
+.msg-row.me .bubble        { background:#95ec69; color:#111; border-top-right-radius:6px; }
+.msg-row.system .bubble    { background:rgba(0,0,0,.04); color:#888; font-size:12px; border-radius:12px; }
+
+/* ===== Typing ===== */
+.typing-row { display:flex; gap:8px; align-items:flex-end; padding:0 10px; }
+.typing-dots {
+  background:#fff; padding:12px 18px; border-radius:18px; border-top-left-radius:6px;
+  display:flex; gap:4px; align-items:center;
+}
+.typing-dot {
+  width:8px; height:8px; border-radius:50%; background:#bbb;
+  animation: blink 1.2s infinite both;
+}
+.typing-dot:nth-child(2) { animation-delay:0.2s; }
+.typing-dot:nth-child(3) { animation-delay:0.4s; }
+@keyframes blink { 0%,80%,100%{ opacity:0.3; } 40%{ opacity:1; } }
+
+/* ===== Input ===== */
+.input-bar {
+  flex-shrink:0; background:#f7f7f7; padding:8px 10px;
+  display:flex; align-items:flex-end; gap:8px;
+  border-top:1px solid #e0e0e0;
+}
+.input-wrap {
+  flex:1; background:#fff; border-radius:20px; padding:8px 14px;
+  border:1px solid #e0e0e0; display:flex; align-items:center;
+}
+.input-wrap input {
+  flex:1; border:none; outline:none; font-size:15px;
+  background:transparent; font-family:inherit;
+}
+.send-btn {
+  background:#07c160; color:#fff; border:none; border-radius:50%;
+  width:36px; height:36px; font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  opacity:0.4; transition: opacity 0.2s;
+}
+.send-btn.active { opacity:1; }
+
+/* ===== Profile Panel ===== */
+.profile-panel {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:#fff; z-index:100; transform:translateX(100%);
+  transition: transform 0.3s ease; overflow-y:auto;
+}
+.profile-panel.open { transform:translateX(0); }
+.pp-header {
+  padding:50px 16px 20px; background:linear-gradient(135deg,#667eea,#764ba2);
+  color:#fff; display:flex; align-items:center; gap:12px;
+}
+.pp-avatar { font-size:48px; }
+.pp-name { font-size:20px; font-weight:600; }
+.pp-role { font-size:12px; opacity:0.8; margin-top:2px; }
+.pp-close { margin-left:auto; font-size:24px; cursor:pointer; padding:8px; }
+.pp-stats { padding:20px 16px; }
+.pp-stat { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f0f0f0; }
+.pp-stat-label { color:#888; font-size:13px; }
+.pp-stat-value { color:#333; font-size:13px; font-weight:500; }
+.pp-goals { padding:0 16px 20px; }
+.pp-goal-title { font-size:13px; color:#888; margin-bottom:8px; }
+.pp-goal-tag {
+  display:inline-block; padding:4px 10px; background:rgba(102,126,234,0.1);
+  color:#667eea; border-radius:12px; font-size:12px; margin:0 6px 6px 0;
+}
+
+/* ===== V2 Memory Indicator ===== */
+.memory-indicator {
+  flex-shrink:0; background:rgba(102,126,234,0.06);
+  padding:6px 16px; font-size:11px; color:#667eea;
+  display:flex; align-items:center; gap:4px;
+  border-bottom:1px solid rgba(102,126,234,0.1);
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div class="header">
+    <span class="header-back">‹</span>
+    <div class="header-info">
+      <div class="header-name">🇯🇵 东京旅行群 · 3位AI</div>
+      <div class="header-sub" id="headerSub">群聊持续活跃中…</div>
+    </div>
+    <span class="header-more" onclick="toggleProfile()">⋯</span>
+  </div>
+
+  <!-- World State Bar (V2) -->
+  <div class="world-bar" id="worldBar">
+    <div class="ws-item"><span class="ws-icon">📍</span><span id="wsLocation">东京·涩谷</span></div>
+    <div class="ws-dot"></div>
+    <div class="ws-item"><span class="ws-icon">🌤️</span><span id="wsWeather">小雨 23°</span></div>
+    <div class="ws-dot"></div>
+    <div class="ws-item"><span class="ws-icon">🕐</span><span id="wsTime">18:32</span></div>
+    <div class="ws-dot"></div>
+    <div class="ws-item"><span class="ws-icon">💬</span><span id="wsMood">兴奋</span></div>
+    <span class="ws-event-tag" id="wsEventTag">🍜 寻找晚餐</span>
+  </div>
+
+  <!-- Event Banner -->
+  <div class="event-banner hidden" id="eventBanner">
+    <span class="event-icon" id="eventIcon">🎉</span>
+    <span class="event-text" id="eventText"></span>
+  </div>
+
+  <!-- Memory Indicator (V2) -->
+  <div class="memory-indicator" id="memoryBar" style="display:none">
+    🧠 群记忆：<span id="memoryText">暂无</span>
+  </div>
+
+  <!-- Messages -->
+  <div class="msg-list" id="msgList"></div>
+
+  <!-- Typing -->
+  <div id="typingArea"></div>
+
+  <!-- Input -->
+  <div class="input-bar">
+    <div class="input-wrap">
+      <input id="msgInput" type="text" placeholder="输入消息…" oninput="onInput()" onkeydown="if(event.key==='Enter')send()" />
+    </div>
+    <button class="send-btn" id="sendBtn" onclick="send()">➤</button>
+  </div>
+
+  <!-- Profile Panel -->
+  <div class="profile-panel" id="profilePanel">
+    <div class="pp-header">
+      <div>
+        <div class="pp-avatar" id="ppAvatar">🤖</div>
+        <div class="pp-name" id="ppName">AI角色</div>
+        <div class="pp-role" id="ppRole">角色信息</div>
+      </div>
+      <span class="pp-close" onclick="toggleProfile()">✕</span>
+    </div>
+    <div class="pp-stats" id="ppStats"></div>
+    <div class="pp-goals" id="ppGoals"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// V2 State
+// ============================================================
+const STATE = {
+  location: '东京', area: '涩谷', weather: '小雨', temperature: 23,
+  time: '18:32', travelPhase: '寻找晚餐', currentMood: '兴奋',
+  lastEvent: '发现一家拉面店', dayOfTrip: 2, season: '夏季',
+};
+const CHARS = {
+  luffy: { name:'路飞', avatar:'🏃', color:'#ff6b6b', goals:['寻找美食','寻找乐趣','拉着大家行动'] },
+  gojo:  { name:'五条悟', avatar:'😎', color:'#667eea', goals:['寻找有趣事情','吐槽别人','制造话题'] },
+  daiyu: { name:'林黛玉', avatar:'🌸', color:'#e48de4', goals:['享受旅行','关注感受','观察环境'] },
+};
+let messages = [];
+let memories = [];
+let currentEvent = null;
+let isTyping = false;
+let idleTimer = null;
+let worldTimer = null;
+
+// ============================================================
+// World State Rendering
+// ============================================================
+function renderWorldState() {
+  document.getElementById('wsLocation').textContent = `${STATE.location}·${STATE.area}`;
+  const weatherIcon = STATE.weather.includes('雨') ? '🌧️' : STATE.weather.includes('晴') ? '☀️' : '🌤️';
+  document.getElementById('wsWeather').textContent = `${weatherIcon} ${STATE.weather} ${STATE.temperature}°`;
+  document.getElementById('wsTime').textContent = STATE.time;
+  document.getElementById('wsMood').textContent = STATE.currentMood;
+  document.getElementById('wsEventTag').textContent = `💬 ${STATE.travelPhase}`;
+}
+
+// ============================================================
+// Event System (V2)
+// ============================================================
+const EVENTS = [
+  { type:'restaurant', icon:'🍜', titles:['发现一家评分4.9的拉面店！','路过一家超赞的寿司店','闻到超香的烤肉味！','发现一家网红咖啡馆'] },
+  { type:'weather', icon:'🌧️', titles:['突然下起小雨…','雨停了！出现彩虹✨','天气超好，阳光明媚！'] },
+  { type:'spot', icon:'⛩️', titles:['发现一座小神社','路过一家超大的扭蛋店','发现一个隐藏书店'] },
+  { type:'event', icon:'🎆', titles:['附近好像有烟花大会！','发现夜市开放了！','路上有街头表演'] },
+  { type:'lost', icon:'🤷', titles:['迷路了…','导航好像指错方向了'] },
+  { type:'queue', icon:'🧍', titles:['排队的人超多…','已经排了20分钟'] },
+  { type:'wallet', icon:'😱', titles:['路飞的钱包不见了！','可能是掉在刚才的店里了'] },
+];
+
+function triggerEvent() {
+  const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  const title = ev.titles[Math.floor(Math.random() * ev.titles.length)];
+  currentEvent = { type: ev.type, title, icon: ev.icon };
+
+  // Update world state
+  STATE.lastEvent = title;
+  if (ev.type === 'restaurant') { STATE.travelPhase = '用餐中'; STATE.currentMood = '满足'; }
+  if (ev.type === 'lost') STATE.currentMood = '焦虑';
+  if (ev.type === 'event') STATE.currentMood = '兴奋';
+  renderWorldState();
+
+  // Show banner
+  const banner = document.getElementById('eventBanner');
+  document.getElementById('eventIcon').textContent = ev.icon;
+  document.getElementById('eventText').textContent = title;
+  banner.classList.remove('hidden');
+  setTimeout(() => banner.classList.add('hidden'), 8000);
+
+  // Add to memories
+  addMemory(title, Object.keys(CHARS), '活跃');
+
+  // Kickoff message
+  const kicker = ev.type === 'wallet' ? 'luffy' : Object.keys(CHARS)[Math.floor(Math.random()*3)];
+  setTimeout(() => {
+    addMsg(kicker, getEventKickoff(kicker, ev.type, title));
+  }, 1000);
+}
+
+function getEventKickoff(charId, type, title) {
+  const kicks = {
+    luffy: { restaurant:'走走走！我知道那家店！超好吃！', weather:'哎下雨了？没事没事，接着走！', spot:'哎你们看那个！', event:'烟花！！！你们要去吗？！', lost:'啊？我们迷路了吗？', queue:'排队？排就排！', wallet:'啊！我钱包呢？！' },
+    gojo:  { restaurant:'这家评分多少？低于7分别叫我。', weather:'下雨？我早就知道了。', spot:'这个角度拍照不错。', event:'烟花大会……还行吧。', lost:'导航有问题，我来找路。', queue:'排队超过20分钟就换一家。', wallet:'……你又丢东西了？' },
+    daiyu: { restaurant:'这家店倒是挺有温馨感的…', weather:'下雨了呢……倒是挺有诗意。', spot:'这神社好安静……喜欢。', event:'烟花……好久没看了。', lost:'迷路了么……慢慢找吧。', queue:'排队就排队，聊聊天也好。', wallet:'别急，好好找找。' },
+  };
+  return (kicks[charId] && kicks[charId][type]) || title;
+}
+
+// ============================================================
+// Memory System (V2)
+// ============================================================
+function addMemory(summary, participants, emotion) {
+  memories.push({ summary, participants, emotion, ts: Date.now() });
+  if (memories.length > 10) memories.shift();
+  const text = memories.slice(-3).map(m => m.summary).join(' → ');
+  document.getElementById('memoryText').textContent = text;
+  document.getElementById('memoryBar').style.display = 'flex';
+}
+
+// ============================================================
+// AI Reply (V2 - context-aware)
+// ============================================================
+function getReply(charId, userText) {
+  // Extract topic from user message
+  const t = (userText || '').toLowerCase();
+  let topic = 'general';
+  if (/吃|饿|食|肉|拉面|饭|餐/.test(t)) topic = 'food';
+  if (/雨|天气|晴|雪/.test(t)) topic = 'weather';
+  if (/迷路|路|方向|导航/.test(t)) topic = 'location';
+  if (/累|休息|睡|酒店/.test(t)) topic = 'rest';
+  if (/好看|美|拍照|风景/.test(t)) topic = 'scenery';
+
+  const replies = {
+    luffy: {
+      food:['走走走！我知道那家店！','那家超好吃！我现在就饿！','肉！！！快走快走！','吃什么都行，走走走！'],
+      weather:['下雨？没事！接着走！','哇晴了！超开心！','管他天气，走就是了！'],
+      location:['迷路？迷路就是冒险！','我知道路！（其实不知道）','随便走啦！'],
+      rest:['休息？现在？再玩一会！','床！好想躺一下！','不累！继续！'],
+      scenery:['哇！！！超好看！！！','快拍照！我也要看！','好看！！比肉还好看！（不对）'],
+      general:['好！！','走走走！','冲！！','真的吗！','嗯嗯嗯！'],
+    },
+    gojo: {
+      food:['评分多少？低于7分别叫我。','这家我吃过更好的。','排队？超过15分钟就算了。','还行吧。'],
+      weather:['我早就知道了。','这种天气普通。','带伞？我不需要。'],
+      location:['跟着我就对了。','迷路？不存在的。','导航？那是给弱者的。'],
+      rest:['这酒店最多三星。','我不累，是你们太弱了。','随便，我都行。'],
+      scenery:['还行，我见过更好的。','这构图……一般。','嗯，有点意思。'],
+      general:['嗯。','随便。','还行吧。','我早知道。','你说了算。'],
+    },
+    daiyu: {
+      food:['这家店……倒也有几分温馨。','不知道有没有不辣的……','你们决定就好。'],
+      weather:['下雨了呢……倒是挺有诗意。','雨后的空气，真好闻。','晴天虽好，未免太晒了些。'],
+      location:['迷路了么……慢慢找吧。','哪条路都好，只要有人陪着。','不急，慢慢走。'],
+      rest:['累了就歇歇吧。','能有一张床安睡，也是幸事。','好好休息，明日还要赶路。'],
+      scenery:['这景色，让人忘了时间。','真美，想写点什么。','嗯……我也想看看。'],
+      general:['嗯……','是呢。','我在想……','这感觉真好。','真的吗……'],
+    },
+  };
+
+  const pool = replies[charId]?.[topic] ?? replies[charId]?.general ?? ['……'];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ============================================================
+// Messaging
+// ============================================================
+function addMsg(charId, text) {
+  const char = CHARS[charId] || { name:'我', avatar:'🧑' };
+  messages.push({ charId, text, char });
+  renderMessages();
+}
+
+function renderMessages() {
+  const list = document.getElementById('msgList');
+  list.innerHTML = '';
+  messages.forEach(m => {
+    const isMe = m.charId === 'user';
+    const row = document.createElement('div');
+    row.className = `msg-row ${isMe ? 'me' : ''}`;
+
+    if (isMe) {
+      row.innerHTML = `
+        <div class="bubble-wrap">
+          <div class="bubble">${escapeHtml(m.text)}</div>
+        </div>
+        <div class="avatar">🧑</div>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="avatar">${m.char.avatar}<div class="ai-badge">AI</div></div>
+        <div class="bubble-wrap">
+          <div class="sender-name">${m.char.name}</div>
+          <div class="bubble">${escapeHtml(m.text)}</div>
+        </div>
+      `;
+    }
+    list.appendChild(row);
+  });
+  list.scrollTop = list.scrollHeight;
+}
+
+function showTyping(charId) {
+  const area = document.getElementById('typingArea');
+  const char = CHARS[charId];
+  area.innerHTML = `
+    <div class="typing-row">
+      <div class="avatar" style="font-size:20px">${char.avatar}</div>
+      <div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
+    </div>
+  `;
+  const list = document.getElementById('msgList');
+  list.scrollTop = list.scrollHeight;
+}
+
+function hideTyping() {
+  document.getElementById('typingArea').innerHTML = '';
+}
+
+// ============================================================
+// Send & Director
+// ============================================================
+function send() {
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  onInput();
+
+  addMsg('user', text);
+  resetIdle();
+
+  // Director: decide who speaks
+  const chars = ['luffy','gojo','daiyu'];
+  const primary = chars[Math.floor(Math.random() * 3)];
+  speakWithDelay(primary, text, 600);
+
+  setTimeout(() => {
+    const others = chars.filter(c => c !== primary);
+    const secondary = others[Math.floor(Math.random() * 2)];
+    if (Math.random() < 0.65) speakWithDelay(secondary, text, 800);
+  }, 2000);
+}
+
+async function speakWithDelay(charId, userText, delay) {
+  await sleep(delay);
+  showTyping(charId);
+  await sleep(1800 + Math.random() * 1500);
+  hideTyping();
+  addMsg(charId, getReply(charId, userText));
+}
+
+function resetIdle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => triggerIdleChat(), 30000 + Math.random() * 20000);
+}
+
+async function triggerIdleChat() {
+  if (isTyping) return;
+  // 40% chance to actually trigger
+  if (Math.random() < 0.4) return resetIdle();
+
+  const chars = ['luffy','gojo','daiyu'];
+  const speaker = chars[Math.floor(Math.random() * 3)];
+
+  // Maybe trigger an event first
+  if (Math.random() < 0.5) {
+    triggerEvent();
+    await sleep(3000);
+  }
+
+  showTyping(speaker);
+  await sleep(2000 + Math.random() * 2000);
+  hideTyping();
+
+  const idleReplies = {
+    luffy: ['有人发现附近有吃的吗？','好无聊啊……','你们在干嘛？','我刚才发现一个好玩的！'],
+    gojo: ['你们聊，我听着。','嗯。','这个没意思。','随便。'],
+    daiyu: ['今天过得真快。','你们聊得好热闹……','有点累了。','嗯，我在这里。'],
+  };
+  addMsg(speaker, idleReplies[speaker][Math.floor(Math.random() * idleReplies[speaker].length)]);
+
+  resetIdle();
+}
+
+// ============================================================
+// World Time Simulation
+// ============================================================
+function startWorldClock() {
+  worldTimer = setInterval(() => {
+    let [h, m] = STATE.time.split(':').map(Number);
+    const add = Math.floor(Math.random() * 15) + 5;
+    m += add;
+    h += Math.floor(m / 60);
+    m = m % 60;
+    if (h >= 24) h = 6;
+    STATE.time = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+    // Auto-update travel phase
+    if (h >= 6 && h < 10) STATE.travelPhase = '早餐时间';
+    else if (h >= 10 && h < 12) STATE.travelPhase = '闲逛探索';
+    else if (h >= 12 && h < 14) STATE.travelPhase = '寻找午餐';
+    else if (h >= 14 && h < 17) STATE.travelPhase = '下午行程';
+    else if (h >= 17 && h < 19) STATE.travelPhase = '寻找晚餐';
+    else if (h >= 19 && h < 22) STATE.travelPhase = '夜晚活动';
+    else if (h >= 22 || h < 2) STATE.travelPhase = '夜生活';
+
+    renderWorldState();
+  }, 45000); // every 45s = ~15min in-world
+}
+
+// ============================================================
+// Profile Panel
+// ============================================================
+function toggleProfile() {
+  document.getElementById('profilePanel').classList.toggle('open');
+}
+
+function openProfile(charId) {
+  const char = CHARS[charId];
+  document.getElementById('ppAvatar').textContent = char.avatar;
+  document.getElementById('ppName').textContent = char.name;
+  document.getElementById('ppRole').textContent = `${char.goals[0]} · AI角色`;
+  document.getElementById('ppStats').innerHTML = [
+    { label:'发言数', value: messages.filter(m => m.charId === charId).length },
+    { label:'活跃度', value: Math.floor(Math.random()*40+60) + '%' },
+    { label:'性格', value: char.goals[0] },
+  ].map(s => `<div class="pp-stat"><span class="pp-stat-label">${s.label}</span><span class="pp-stat-value">${s.value}</span></div>`).join('');
+  document.getElementById('ppGoals').innerHTML = `
+    <div class="pp-goal-title">角色目标</div>
+    ${char.goals.map(g => `<span class="pp-goal-tag">${g}</span>`).join('')}
+  `;
+  document.getElementById('profilePanel').classList.add('open');
+}
+
+// ============================================================
+// Init
+// ============================================================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function onInput() {
+  document.getElementById('sendBtn').classList.toggle('active', document.getElementById('msgInput').value.trim().length > 0);
+}
+
+// Initial messages
+addMsg('luffy', '到了到了！涩谷站！走走走！');
+addMsg('gojo', '别急，先看看地图。');
+addMsg('daiyu', '人真多啊……不过天空倒是挺好看的。');
+
+renderWorldState();
+resetIdle();
+startWorldClock();
+</script>
+</body>
+</html>

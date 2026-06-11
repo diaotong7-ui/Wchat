@@ -3,7 +3,9 @@ import {
   ChatMessage,
   Character,
   TypingState,
-  GroupEventNotice,
+  WorldState,
+  EventNotice,
+  MemoryEntry,
   WsPacket,
 } from '../types';
 
@@ -13,7 +15,9 @@ interface UseGroupChatReturn {
   messages: ChatMessage[];
   typingCharacters: TypingState[];
   characters: Character[];
-  currentEvent: GroupEventNotice | null;
+  worldState: WorldState | null;
+  currentEvent: EventNotice | null;
+  groupMemory: MemoryEntry[];
   isConnected: boolean;
   sendMessage: (content: string) => void;
 }
@@ -22,7 +26,9 @@ export function useGroupChat(): UseGroupChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typingCharacters, setTypingCharacters] = useState<TypingState[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
-  const [currentEvent, setCurrentEvent] = useState<GroupEventNotice | null>(null);
+  const [worldState, setWorldState] = useState<WorldState | null>(null);
+  const [currentEvent, setCurrentEvent] = useState<EventNotice | null>(null);
+  const [groupMemory, setGroupMemory] = useState<MemoryEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -45,10 +51,6 @@ export function useGroupChat(): UseGroupChatReturn {
       reconnectTimer.current = setTimeout(connect, 3000);
     };
 
-    ws.onerror = (e) => {
-      console.error('[WS] Error', e);
-    };
-
     ws.onmessage = (event) => {
       try {
         const packet: WsPacket = JSON.parse(event.data);
@@ -62,23 +64,27 @@ export function useGroupChat(): UseGroupChatReturn {
   function handlePacket(packet: WsPacket): void {
     switch (packet.type) {
       case 'init_state': {
-        const { messages: hist, characters: chars } = packet.payload as {
+        const payload = packet.payload as {
           messages: ChatMessage[];
           characters: Character[];
+          worldState: WorldState;
+          currentEvent: EventNotice | null;
+          groupMemory?: MemoryEntry[];
         };
-        setMessages(hist || []);
-        setCharacters(chars || []);
+        setMessages(payload.messages || []);
+        setCharacters(payload.characters || []);
+        setWorldState(payload.worldState || null);
+        setCurrentEvent(payload.currentEvent || null);
+        setGroupMemory(payload.groupMemory || []);
         break;
       }
+
       case 'chat_message': {
         const msg = packet.payload as ChatMessage;
-        setMessages((prev) => {
-          // 去重
-          if (prev.find((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
+        setMessages((prev) => [...prev, msg]);
         break;
       }
+
       case 'typing_start': {
         const ts = packet.payload as TypingState;
         setTypingCharacters((prev) => {
@@ -87,6 +93,7 @@ export function useGroupChat(): UseGroupChatReturn {
         });
         break;
       }
+
       case 'typing_stop': {
         const ts = packet.payload as TypingState;
         setTypingCharacters((prev) =>
@@ -94,11 +101,22 @@ export function useGroupChat(): UseGroupChatReturn {
         );
         break;
       }
+
       case 'event_start': {
-        const ev = packet.payload as GroupEventNotice;
+        const ev = packet.payload as EventNotice;
         setCurrentEvent(ev);
         // 事件提示60秒后自动消失
         setTimeout(() => setCurrentEvent(null), 60000);
+        break;
+      }
+
+      case 'world_state_update': {
+        const payload = packet.payload as {
+          worldState: WorldState;
+          currentEvent: EventNotice | null;
+        };
+        setWorldState(payload.worldState);
+        setCurrentEvent(payload.currentEvent);
         break;
       }
     }
@@ -115,7 +133,7 @@ export function useGroupChat(): UseGroupChatReturn {
   const sendMessage = useCallback((content: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
-        JSON.stringify({ type: 'user_message', payload: { content } } satisfies WsPacket)
+        JSON.stringify({ type: 'user_message', payload: { content } } as WsPacket)
       );
     }
   }, []);
@@ -124,7 +142,9 @@ export function useGroupChat(): UseGroupChatReturn {
     messages,
     typingCharacters,
     characters,
+    worldState,
     currentEvent,
+    groupMemory,
     isConnected,
     sendMessage,
   };

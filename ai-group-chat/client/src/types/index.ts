@@ -1,26 +1,20 @@
-// 前后端共享的类型（复制自 server/src/types.ts）
-export type CharacterId = 'luffy' | 'gojo' | 'daiyu' | 'user';
-
+// 客户端类型定义（V2）
 export interface Character {
-  id: CharacterId;
+  id: string;
   name: string;
   avatar: string;
   color: string;
   personality: string;
   goal: string;
-  replyLengthMin: number;
-  replyLengthMax: number;
-  systemPrompt: string;
 }
 
 export interface ChatMessage {
-  id: string;
-  characterId: CharacterId;
+  id?: string;
+  characterId: string;
   characterName: string;
   avatar: string;
   content: string;
   timestamp: number;
-  isTyping?: boolean;
 }
 
 export interface TypingState {
@@ -29,24 +23,40 @@ export interface TypingState {
   avatar: string;
 }
 
-export interface GroupEvent {
-  id: string;
-  name: string;
-  description: string;
-  active: boolean;
+export interface WorldState {
+  location: string;
+  area: string;
+  weather: string;
+  temperature: number;
+  time: string;
+  travelPhase: string;
+  currentMood: string;
+  lastEvent: string;
+  dayOfTrip: number;
+  season: string;
 }
 
-export interface GroupEventNotice {
+export interface EventNotice {
+  eventId: string;
+  eventType: string;
   eventName: string;
-  openingLine: string;
+  description: string;
 }
 
+export interface MemoryEntry {
+  id: string;
+  summary: string;
+  participants: string[];
+  emotion: string;
+}
+
+// WebSocket 协议类型（V2）
 export type WsMessageType =
   | 'chat_message'
   | 'typing_start'
   | 'typing_stop'
   | 'event_start'
-  | 'event_end'
+  | 'world_state_update'
   | 'user_message'
   | 'init_state';
 
