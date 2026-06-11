@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Wchat V3 - AI群聊演示版</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #EDEDED;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* 手机容器 */
+    .phone {
+      width: 390px;
+      height: 844px;
+      background: #F5F5F5;
+      border-radius: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* 顶栏 */
+    .header {
+      background: #FFFFFF;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #E5E5E5;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      flex: 1;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 500;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      padding: 4px 16px 8px;
+      background: #FFFFFF;
+    }
+
+    /* 世界状态栏 */
+    .world-state {
+      background: #F0F9FF;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #666;
+      border-bottom: 1px solid #E5E5E5;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .world-state-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* 消息区域 */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #F5F5F5;
+    }
+
+    .message {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+      gap: 8px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .avatar-luffy { background: #FFE4B5; }
+    .avatar-gojo { background: #E4F1FF; }
+    .avatar-daiyu { background: #FFE4E1; }
+    .avatar-user { background: #DCFEDE; }
+
+    .sender-name {
+      font-size: 13px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .message-time {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .bubble {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.5;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    .bubble-user {
+      background: #95EC69;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+
+    .bubble-ai {
+      background: #FFFFFF;
+      align-self: flex-start;
+    }
+
+    /* 事件通知 */
+    .event-notification {
+      background: #FFF3CD;
+      border: 1px solid #FFEAA7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+
+    .event-title {
+      font-weight: 600;
+      color: #856404;
+      margin-bottom: 4px;
+    }
+
+    .event-desc {
+      color: #856404;
+    }
+
+    /* 目标进度 */
+    .goal-progress {
+      background: #D1ECF1;
+      border: 1px solid #BEE5EB;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #0C5460;
+    }
+
+    /* 输入区域 */
+    .input-area {
+      background: #FFFFFF;
+      padding: 12px 16px;
+      display: flex;
+      gap: 12px;
+      border-top: 1px solid #E5E5E5;
+      flex-shrink: 0;
+    }
+
+    .input-box {
+      flex: 1;
+      border: 1px solid #E5E5E5;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    .send-btn {
+      background: #07C160;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .send-btn:active {
+      background: #06AD56;
+    }
+
+    /* 调试面板 */
+    .debug-panel {
+      position: absolute;
+      bottom: 80px;
+      right: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      max-width: 200px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .debug-toggle {
+      position: absolute;
+      bottom: 80px;
+      right: 10px;
+      background: #007AFF;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    /* 意图显示 */
+    .intent-display {
+      background: #F8F9FA;
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #666;
+      border-bottom: 1px solid #E5E5E5;
+      display: none;
+    }
+
+    .intent-tag {
+      display: inline-block;
+      background: #E3F2FD;
+      color: #1976D2;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-right: 6px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <!-- 顶栏 -->
+    <div class="header">
+      <div style="width: 24px;"></div>
+      <div class="header-title">日本旅行群 (4)</div>
+      <div style="width: 24px;"></div>
+    </div>
+    <div class="header-subtitle">V3 架构 · 智能群聊</div>
+
+    <!-- 世界状态栏 -->
+    <div class="world-state">
+      <div class="world-state-item">📍 东京</div>
+      <div class="world-state-item">🌤️ 晴天 22°C</div>
+      <div class="world-state-item">⏰ 14:30</div>
+    </div>
+
+    <!-- 意图显示 -->
+    <div class="intent-display" id="intentDisplay">
+      <span class="intent-tag" id="intentTag">intent: ...</span>
+      <span class="intent-tag" id="emotionTag">emotion: ...</span>
+      <span class="intent-tag" id="topicTag">topic: ...</span>
+    </div>
+
+    <!-- 消息区域 -->
+    <div class="messages" id="messages"></div>
+
+    <!-- 调试面板 -->
+    <div class="debug-panel" id="debugPanel"></div>
+    <button class="debug-toggle" id="debugToggle">🐛</button>
+
+    <!-- 输入区域 -->
+    <div class="input-area">
+      <input type="text" class="input-box" id="inputBox" placeholder="输入消息..." />
+      <button class="send-btn" id="sendBtn">发送</button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // V3 架构实现
+    // ============================================================
+
+    // 状态管理
+    const state = {
+      messages: [],
+      currentEvent: null,
+      worldState: {
+        location: '东京',
+        area: '涩谷',
+        weather: '晴天',
+        temperature: 22,
+        time: '14:30',
+        travelPhase: '游玩中',
+        currentMood: '愉快',
+        lastEvent: null,
+      },
+      memory: {
+        summaries: [],
+        keyMemories: [],
+      },
+      tripGoal: {
+        id: 'find_best_ramen',
+        title: '找到东京最好吃的拉面',
+        progress: 0,
+        current: 0,
+        target: 3,
+      },
+      isTyping: false,
+      lastUserActiveTime: Date.now(),
+      debugMode: false,
+    };
+
+    // ============================================================
+    // 1. Intent Engine - 意图理解引擎
+    // ============================================================
+    function analyzeIntent(userMessage) {
+      const msg = userMessage.toLowerCase().trim();
+      const result = {
+        intent: 'random_chat',
+        emotion: 'neutral',
+        topic: 'general',
+        urgency: 0.3,
+      };
+
+      // 意图识别
+      if (/干嘛|干什么|在干|在做|大家|你们在|在吗|有人|谁在/.test(msg)) {
+        result.intent = 'ask_status';
+        result.topic = 'social';
+      }
+      if (/觉得|认为|怎么看|想法|意见|建议/.test(msg)) {
+        result.intent = 'ask_opinion';
+        result.topic = 'opinion';
+        result.urgency = 0.5;
+      }
+      if (/饿|吃|食|肉|面|饭|餐|拉面|美食/.test(msg)) {
+        result.intent = 'need_food';
+        result.topic = 'food';
+        result.urgency = 0.7;
+      }
+      if (/帮|问题|困难|迷路|怎么办/.test(msg)) {
+        result.intent = 'need_help';
+        result.topic = 'help';
+        result.urgency = 0.8;
+      }
+
+      // 情绪识别
+      if (/哈哈|开心|高兴|快乐|喜欢|爱/.test(msg)) {
+        result.emotion = 'happy';
+      }
+      if (/呜呜|哭|伤心|难过|失望/.test(msg)) {
+        result.emotion = 'sad';
+      }
+      if (/气死|生气|愤怒|讨厌|烦/.test(msg)) {
+        result.emotion = 'angry';
+      }
+      if (/哇|超|太|!!!|！！！/.test(msg)) {
+        result.emotion = 'excited';
+      }
+
+      return result;
+    }
+
+    // ============================================================
+    // 2. Director Agent V3 - 核心调度器
+    // ============================================================
+    function directV3(intent, recentMessages) {
+      const chars = ['luffy', 'gojo', 'daiyu'];
+      const recentSenders = recentMessages.slice(-3).map(m => m.sender);
+      const lastSender = recentMessages.length > 0 ? recentMessages[recentMessages.length - 1].sender : null;
+
+      // 根据意图决定发言者数量
+      const intentSpeakerCount = {
+        ask_status: 2,
+        ask_opinion: 3,
+        need_food: 3,
+        need_help: 2,
+        emotion_happy: 2,
+        emotion_sad: 2,
+        emotion_angry: 2,
+        emotion_excited: 3,
+        random_chat: 1,
+      };
+
+      const targetCount = intent ? (intentSpeakerCount[intent.intent] || 1) : 1;
+
+      // 权重计算（含降权规则）
+      let weighted = chars.map(c => {
+        let w = 0.5;
+
+        // 意图偏好
+        if (intent) {
+          if (intent.intent === 'need_food' && c === 'luffy') w = 0.9;
+          if (intent.intent === 'emotion_angry' && c === 'gojo') w = 0.9;
+          if (intent.intent === 'emotion_sad' && c === 'daiyu') w = 0.9;
+          if (intent.intent === 'ask_opinion' && c === 'gojo') w = 0.9;
+        }
+
+        // 降权规则
+        if (recentSenders.includes(c)) w *= 0.3;
+        if (c === lastSender) w *= 0.05;
+
+        return { char: c, w };
+      });
+
+      // 未发言角色提权
+      const silentChars = chars.filter(c => !recentSenders.includes(c));
+      if (silentChars.length > 0) {
+        weighted.forEach(item => {
+          if (silentChars.includes(item.char)) item.w += 0.5;
+        });
+      }
+
+      weighted.sort((a, b) => b.w - a.w);
+
+      // 选择发言者
+      const speakers = [];
+      for (let i = 0; i < Math.min(targetCount, 3); i++) {
+        if (i === 0) {
+          let primary = weighted[0].char;
+          if (primary === lastSender && weighted.length > 1) {
+            primary = weighted[1].char;
+          }
+          speakers.push(primary);
+        } else {
+          const next = weighted.find(w => !speakers.includes(w.char) && w.char !== lastSender);
+          if (next) speakers.push(next.char);
+        }
+      }
+
+      return {
+        speakers,
+        discussionMode: getDiscussionMode(intent ? intent.intent : 'random_chat'),
+      };
+    }
+
+    function getDiscussionMode(intent) {
+      const modeMap = {
+        ask_status: 'social',
+        ask_opinion: 'discussion',
+        need_food: 'food',
+        need_help: 'support',
+        emotion_happy: 'celebration',
+        emotion_sad: 'comfort',
+        emotion_angry: 'conflict',
+        emotion_excited: 'excitement',
+        random_chat: 'casual',
+      };
+      return modeMap[intent] || 'casual';
+    }
+
+    // ============================================================
+    // 3. Conversation Engine - 对话引擎
+    // ============================================================
+    async function generateConversation(speakers, userMessage, intent) {
+      const replies = [];
+
+      for (let i = 0; i < speakers.length; i++) {
+        const charId = speakers[i];
+        const previousReplies = replies.map(r => ({ charId: r.charId, reply: r.reply }));
+
+        const reply = await generateCharacterReplyV3({
+          charId,
+          userMessage: i === 0 ? userMessage : null,
+          intent,
+          previousReplies,
+          isFirstSpeaker: i === 0,
+          previousSpeakerReply: i > 0 ? replies[i - 1].reply : null,
+        });
+
+        replies.push({ charId, reply });
+      }
+
+      return replies;
+    }
+
+    // ============================================================
+    // 4. Character Agent V3 - 角色发言生成器
+    // ============================================================
+    async function generateCharacterReplyV3(params) {
+      const { charId, userMessage, intent, previousReplies, isFirstSpeaker, previousSpeakerReply } = params;
+
+      // 模拟AI生成（实际应调用API）
+      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+
+      // 根据角色和上下文生成回复
+      let reply = '';
+
+      if (charId === 'luffy') {
+        if (isFirstSpeaker && userMessage) {
+          // 第一个发言者，回应用户
+          if (intent && intent.intent === 'need_food') {
+            reply = '我饿死了！！走走走，去找吃的！！';
+          } else if (intent && intent.intent === 'ask_status') {
+            reply = '我在想吃什么！你呢？';
+          } else {
+            reply = `${userMessage.slice(0, 10)}？！超有意思！！`;
+          }
+        } else if (previousSpeakerReply) {
+          // 接话前面的角色
+          reply = `没错！${previousSpeakerReply.slice(0, 8)}！！`;
+        } else {
+          reply = '肉！！！';
+        }
+      } else if (charId === 'gojo') {
+        if (isFirstSpeaker && userMessage) {
+          if (intent && intent.intent === 'need_food') {
+            reply = '哼，就知道吃。不过那家店确实不错。';
+          } else if (intent && intent.intent === 'ask_status') {
+            reply = '在看你们表演。';
+          } else {
+            reply = '就这？';
+          }
+        } else if (previousSpeakerReply) {
+          reply = `典型的${getCharName(previousReplies[previousReplies.length - 1].charId)}风格。`;
+        } else {
+          reply = '无聊。';
+        }
+      } else if (charId === 'daiyu') {
+        if (isFirstSpeaker && userMessage) {
+          if (intent && intent.intent === 'need_food') {
+            reply = '倒是听说附近有家不错的店……';
+          } else if (intent && intent.intent === 'ask_status') {
+            reply = '我……在看风景。';
+          } else {
+            reply = userMessage + '……吗……';
+          }
+        } else if (previousSpeakerReply) {
+          reply = '你们啊，真是的……';
+        } else {
+          reply = '……';
+        }
+      }
+
+      return reply;
+    }
+
+    function getCharName(charId) {
+      const names = { luffy: '路飞', gojo: '五条悟', daiyu: '林黛玉' };
+      return names[charId] || charId;
+    }
+
+    // ============================================================
+    // 5. Relationship System - 角色关系系统
+    // ============================================================
+    const relationships = {
+      'luffy-gojo': 'bickering',
+      'luffy-daiyu': 'caring',
+      'gojo-daiyu': 'teasing',
+    };
+
+    function getRelationship(char1, char2) {
+      return relationships[`${char1}-${char2}`] || relationships[`${char2}-${char1}`] || 'neutral';
+    }
+
+    // ============================================================
+    // 6. Trip Goal Engine - 旅行目标引擎
+    // ============================================================
+    function updateGoalProgress() {
+      if (state.tripGoal && !state.tripGoal.isCompleted) {
+        state.tripGoal.current += 1;
+        state.tripGoal.progress = Math.floor((state.tripGoal.current / state.tripGoal.target) * 100);
+        state.tripGoal.isCompleted = state.tripGoal.current >= state.tripGoal.target;
+        return true;
+      }
+      return false;
+    }
+
+    // ============================================================
+    // 7. Event Engine V3 - 事件引擎
+    // ============================================================
+    function generateEventV3() {
+      // 根据旅行目标生成相关事件
+      if (state.tripGoal && state.tripGoal.id === 'find_best_ramen') {
+        return {
+          title: '发现一家评分4.9的拉面店',
+          description: '藏在巷子里，排队的人不少',
+          type: 'restaurant',
+        };
+      }
+
+      // 默认事件
+      return {
+        title: '群里继续聊天',
+        description: '大家在随意闲聊',
+        type: 'general',
+      };
+    }
+
+    // ============================================================
+    // 8. Memory Engine V3 - 群记忆系统
+    // ============================================================
+    function saveMemory(summary) {
+      state.memory.summaries.push(summary);
+      if (state.memory.summaries.length > 50) {
+        state.memory.summaries = state.memory.summaries.slice(-50);
+      }
+    }
+
+    function getRecentMemories(count = 3) {
+      return state.memory.summaries.slice(-count);
+    }
+
+    // ============================================================
+    // 9. Idle Engine V3 - 空闲调度器
+    // ============================================================
+    let idleTimer = null;
+
+    function startIdleTimer() {
+      if (idleTimer) clearTimeout(idleTimer);
+
+      idleTimer = setTimeout(() => {
+        if (!state.isTyping) {
+          generateIdleConversation();
+        }
+      }, 30000); // 30秒
+    }
+
+    async function generateIdleConversation() {
+      state.isTyping = true;
+
+      // 生成空闲对话
+      const event = generateEventV3();
+
+      addEventNotification(event);
+
+      // 路飞先说
+      await addMessage('luffy', '我发现了一家超棒的店！！走！！');
+
+      // 五条悟接话
+      await addMessage('gojo', '又来了。');
+
+      // 林黛玉接话
+      await addMessage('daiyu', '……好吧。');
+
+      // 保存记忆
+      saveMemory(`空闲时讨论了${event.title}`);
+
+      // 更新目标进度
+      updateGoalProgress();
+
+      state.isTyping = false;
+
+      // 重新开始计时
+      startIdleTimer();
+    }
+
+    // ============================================================
+    // UI 更新函数
+    // ============================================================
+    function addMessage(sender, text) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          const message = { sender, text, timestamp: Date.now() };
+          state.messages.push(message);
+
+          const messagesEl = document.getElementById('messages');
+          const msgEl = document.createElement('div');
+          msgEl.className = 'message';
+
+          const isUser = sender === 'user';
+          const senderName = isUser ? '我' : getCharName(sender);
+          const avatarClass = isUser ? 'avatar-user' : `avatar-${sender}`;
+
+          msgEl.innerHTML = `
+            <div class="message-header">
+              <div class="avatar ${avatarClass}">${isUser ? '我' : getCharName(sender).charAt(0)}</div>
+              <div>
+                <div class="sender-name">${senderName}</div>
+                <div class="message-time">${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+            </div>
+            <div class="bubble ${isUser ? 'bubble-user' : 'bubble-ai'}">${text}</div>
+          `;
+
+          messagesEl.appendChild(msgEl);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+
+          resolve();
+        }, 800);
+      });
+    }
+
+    function addEventNotification(event) {
+      const messagesEl = document.getElementById('messages');
+      const eventEl = document.createElement('div');
+      eventEl.className = 'event-notification';
+      eventEl.innerHTML = `
+        <div class="event-title">📢 ${event.title}</div>
+        <div class="event-desc">${event.description}</div>
+      `;
+      messagesEl.appendChild(eventEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addGoalProgress() {
+      if (!state.tripGoal) return;
+
+      const messagesEl = document.getElementById('messages');
+      const goalEl = document.createElement('div');
+      goalEl.className = 'goal-progress';
+      goalEl.innerHTML = `
+        <div>🎯 旅行目标：${state.tripGoal.title}</div>
+        <div>进度：${state.tripGoal.current}/${state.tripGoal.target} (${state.tripGoal.progress}%)</div>
+      `;
+      messagesEl.appendChild(goalEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function updateIntentDisplay(intent) {
+      const display = document.getElementById('intentDisplay');
+      const intentTag = document.getElementById('intentTag');
+      const emotionTag = document.getElementById('emotionTag');
+      const topicTag = document.getElementById('topicTag');
+
+      intentTag.textContent = `intent: ${intent.intent}`;
+      emotionTag.textContent = `emotion: ${intent.emotion}`;
+      topicTag.textContent = `topic: ${intent.topic}`;
+
+      display.style.display = 'block';
+    }
+
+    // ============================================================
+    // 主流程
+    // ============================================================
+    async function handleSendMessage() {
+      const inputBox = document.getElementById('inputBox');
+      const text = inputBox.value.trim();
+      if (!text || state.isTyping) return;
+
+      // 添加用户消息
+      await addMessage('user', text);
+      inputBox.value = '';
+
+      // 更新用户活跃时间
+      state.lastUserActiveTime = Date.now();
+
+      // 分析意图
+      const intent = analyzeIntent(text);
+      updateIntentDisplay(intent);
+
+      // Director决策
+      const directorResult = directV3(intent, state.messages);
+
+      // 生成对话
+      state.isTyping = true;
+      const replies = await generateConversation(directorResult.speakers, text, intent);
+
+      // 添加AI回复
+      for (const r of replies) {
+        await addMessage(r.charId, r.reply);
+      }
+
+      // 保存记忆
+      saveMemory(`${intent.intent}: ${text.slice(0, 20)}...`);
+
+      // 更新目标进度（如果相关）
+      if (intent.intent === 'need_food') {
+        updateGoalProgress();
+        addGoalProgress();
+      }
+
+      state.isTyping = false;
+
+      // 重新开始空闲计时
+      startIdleTimer();
+    }
+
+    // ============================================================
+    // 事件监听
+    // ============================================================
+    document.getElementById('sendBtn').addEventListener('click', handleSendMessage);
+    document.getElementById('inputBox').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleSendMessage();
+    });
+
+    document.getElementById('debugToggle').addEventListener('click', () => {
+      const panel = document.getElementById('debugPanel');
+      state.debugMode = !state.debugMode;
+      panel.style.display = state.debugMode ? 'block' : 'none';
+    });
+
+    // 启动空闲计时器
+    startIdleTimer();
+
+    // 初始化消息
+    setTimeout(() => {
+      addMessage('luffy', '大家好！！我准备好出发了！！');
+    }, 500);
+
+    console.log('Wchat V3 Demo loaded successfully!');
+  </script>
+</body>
+</html>
