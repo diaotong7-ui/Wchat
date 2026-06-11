@@ -57,10 +57,10 @@ const EVENT_TYPE_PREFERENCE: Record<string, Record<string, number>> = {
 
 /**
  * Director 主函数：决定下一轮发言安排
- * @param worldState 当前世界状态
- * @param recentMessages 最近聊天记录（最多20条）
- * @param currentEvent 当前活跃事件（可选）
- * @param isUserActive 用户是否刚发消息
+ * 发言规则：
+ *  1. 同一个角色不能连续发言超过1次
+ *  2. 最近3条消息出现过的角色降低发言概率
+ *  3. 优先选择未发言角色参与互动
  */
 export function direct(
   worldState: WorldState,
@@ -71,43 +71,76 @@ export function direct(
   const speakers: string[] = [];
   let continueDiscussion = false;
 
-  // 1. 根据当前事件决定主发言人
+  const chars = ['luffy', 'gojo', 'daiyu'];
+
+  // 最近3条消息的发言者（用于降权）
+  const recentSenders = recentMessages.slice(-3).map(m => m.sender);
+
+  // 最后一条消息的发言者（防止连续发言）
+  const lastSender = recentMessages.length > 0
+    ? recentMessages[recentMessages.length - 1].sender
+    : null;
+
+  // 基础权重：事件偏好
   const eventType = currentEvent?.type ?? 'general';
   const prefs = EVENT_TYPE_PREFERENCE[eventType] ?? { luffy: 0.5, gojo: 0.5, daiyu: 0.5 };
 
-  // 主发言人：按权重随机选（不是纯随机，有偏好）
-  const chars = ['luffy', 'gojo', 'daiyu'];
-  const weighted = chars.map(c => ({ char: c, w: prefs[c] ?? 0.5 }));
+  // 计算最终权重
+  const weighted = chars.map(c => {
+    let w = prefs[c] ?? 0.5;
+
+    // 规则2：最近3条出现过的角色降权
+    if (recentSenders.includes(c)) {
+      w *= 0.3;
+    }
+
+    // 规则1：最后发言者额外降权（防止连续发言）
+    if (c === lastSender) {
+      w *= 0.1;
+    }
+
+    return { char: c, w };
+  });
+
+  // 规则3：如果有未发言角色（最近3条都没出现），大幅提高权重
+  const silentChars = chars.filter(c => !recentSenders.includes(c));
+  if (silentChars.length > 0) {
+    weighted.forEach(item => {
+      if (silentChars.includes(item.char)) {
+        item.w += 0.5;
+      }
+    });
+  }
+
+  // 按权重排序
   weighted.sort((a, b) => b.w - a.w);
 
-  // 选主发言人（带随机性，不是永远权重最高）
+  // 选主发言人（带随机性）
   const primaryRoll = Math.random();
   let primary: string;
   if (primaryRoll < 0.5) primary = weighted[0].char;
   else if (primaryRoll < 0.8) primary = weighted[1].char;
   else primary = weighted[2].char;
 
+  // 双重保险：确保主发言人不是 lastSender
+  if (primary === lastSender && weighted.length > 1) {
+    primary = weighted[1].char;
+  }
+
   speakers.push(primary);
 
   // 2. 决定是否触发第二个角色接话
-  const lastSpeaker = recentMessages.length > 0
-    ? recentMessages[recentMessages.length - 1].sender
-    : null;
-
-  // 如果最后一个发言者不是primary，有一定概率接话
   const secondaryChance = isUserActive ? 0.7 : 0.4;
   if (Math.random() < secondaryChance) {
-    const others = chars.filter(c => c !== primary && c !== lastSpeaker);
+    const others = chars.filter(c => c !== primary && c !== lastSender);
     if (others.length > 0) {
-      // 选一个跟事件相关的
-      const secondaryprefs = others.map(c => ({ char: c, w: prefs[c] ?? 0.5 }));
-      secondaryprefs.sort((a, b) => b.w - a.w);
-      speakers.push(secondaryprefs[0].char);
+      const secondaryPrefs = others.map(c => ({ char: c, w: prefs[c] ?? 0.5 }));
+      secondaryPrefs.sort((a, b) => b.w - a.w);
+      speakers.push(secondaryPrefs[0].char);
     }
   }
 
-  // 3. 判断是否继续讨论（多轮对话）
-  // 条件：用户活跃 OR 当前事件importance高 OR 随机
+  // 3. 判断是否继续讨论
   if (isUserActive && currentEvent && currentEvent.importance > 0.6) {
     continueDiscussion = Math.random() < 0.5;
   }
@@ -118,16 +151,14 @@ export function direct(
   // 4. 是否产生新事件
   let nextEvent: Event | null = null;
   if (!currentEvent) {
-    // 当前没有事件，50%概率生成新事件
     if (Math.random() < 0.5) {
-      const { generateEvent } = require('./eventEngine');
       nextEvent = generateEvent(worldState);
     }
   }
 
   const reasoning = [
     `事件类型: ${eventType}`,
-    `主发言人: ${primary} (权重${prefs[primary]})`,
+    `主发言人: ${primary} (权重${weighted[0].w.toFixed(2)})`,
     `接话者: ${speakers.slice(1).join(', ') || '无'}`,
     `继续讨论: ${continueDiscussion}`,
     `新事件: ${nextEvent?.title ?? '无'}`,

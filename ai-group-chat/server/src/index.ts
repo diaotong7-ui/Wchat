@@ -138,22 +138,56 @@ async function generateAIReply(
 }
 
 function generateFallbackReply(charId: string, userMessage: string | null): string {
-  const replies: Record<string, string[]> = {
-    luffy: [
-      '好！！', '走走走！', '吃肉！', '冲！！',
-      '嗯嗯！', '真的吗！', '好期待！', '我饿了！',
-    ],
-    gojo: [
-      '嗯。', '随便。', '还行吧。', '你说了算。',
-      '有点意思。', '我早知道。', '这个嘛……', '好吧。',
-    ],
-    daiyu: [
-      '嗯……', '是呢。', '我在想……', '这感觉真好。',
-      '有点感动。', '是这样的。', '真的吗……', '嗯，好。',
-    ],
-  };
-  const pool = replies[charId] ?? ['……'];
-  return pool[Math.floor(Math.random() * pool.length)];
+  const um = (userMessage || '').trim();
+  const umLower = um.toLowerCase();
+
+  // 根据用户消息内容生成针对性 fallback 回复
+  // 路飞：热情冲动，围绕吃和行动
+  if (charId === 'luffy') {
+    if (/吃|饿|食|肉|面|饭|餐|菜|喝|奶茶|咖啡|甜点|烧烤|火锅|好吃|美食/.test(umLower))
+      return [`${um.slice(0, 8)}？！我现在就饿了！`, '走走走！先去吃！', '肉！！！', '那家店我听说过！'][Math.floor(Math.random() * 4)];
+    if (/干嘛|干什么|在干|在做|大家/.test(um))
+      return ['我在想吃什么！', '找好吃的！跟我来！', '准备出发！', '超饿的！'][Math.floor(Math.random() * 4)];
+    if (/雨|湿|冷|天气|下雪|热|温度/.test(umLower))
+      return ['怕什么！走就是了！', 'Wow好刺激！', '先找地方躲一下！'][Math.floor(Math.random() * 3)];
+    if (/迷路|路|方向|导航|地图|在哪/.test(umLower))
+      return ['随便走！', '迷路就是冒险！', '那边那边！'][Math.floor(Math.random() * 3)];
+    if (/谁|什么|怎么|为什么|哪|多少|吗|呢/.test(um))
+      return ['这个嘛……不知道！', '问得好！但我也不知道！', '管他呢，先走！'][Math.floor(Math.random() * 3)];
+    return ['好！！', '那就去吧！', '没问题！', '冲！'][Math.floor(Math.random() * 4)];
+  }
+
+  // 五条悟：自信嘴欠
+  if (charId === 'gojo') {
+    if (/吃|饿|食|肉|面|饭|餐/.test(umLower))
+      return ['这家评分不会超过7分。', '哦？我吃过更好的。', '还行吧，也就那样。', '排队超过10分钟我就不吃了。'][Math.floor(Math.random() * 4)];
+    if (/干嘛|干什么|在干|在做|大家/.test(um))
+      return ['我？在看戏。', '随便逛逛。', '你们太慢了。', '有点无聊。'][Math.floor(Math.random() * 4)];
+    if (/雨|湿|冷|天气/.test(umLower))
+      return ['下雨而已，普通。', '我早就预料到了。', '这天气……还行吧。'][Math.floor(Math.random() * 3)];
+    if (/迷路|路|方向|导航/.test(umLower))
+      return ['迷路？跟着我就对了。', '这地方我闭着眼睛都能找到。', '导航？那是给弱者的。'][Math.floor(Math.random() * 3)];
+    if (/谁|什么|怎么|为什么|哪|多少|吗|呢/.test(um))
+      return ['问得好，但我不会告诉你。', '你猜？', '想知道？求我啊。'][Math.floor(Math.random() * 3)];
+    return ['哦？', '有趣。', '随便。', '还行吧。'][Math.floor(Math.random() * 4)];
+  }
+
+  // 林黛玉：文艺细腻
+  if (charId === 'daiyu') {
+    if (/吃|饿|食|肉|面|饭|餐/.test(umLower))
+      return ['听起来就让人心生向往……', '不知可有故乡的味道？', '进去坐坐也好，外头风有些凉。', '嗯……让我想起一首诗。'][Math.floor(Math.random() * 4)];
+    if (/干嘛|干什么|在干|在做|大家/.test(um))
+      return ['我……在看风景。', '没干什么，就在想事情。', '你们呢？', '倒也清净。'][Math.floor(Math.random() * 4)];
+    if (/雨|湿|冷|天气/.test(umLower))
+      return ['下雨了……最近总是这样。', '雨天最适合一个人发呆……', '这雨，倒也有几分诗意。'][Math.floor(Math.random() * 3)];
+    if (/迷路|路|方向|导航/.test(umLower))
+      return ['迷路了……倒也未尝不是一种风景。', '不知何去，反而自由。', '走走看，哪条路都好。'][Math.floor(Math.random() * 3)];
+    if (/谁|什么|怎么|为什么|哪|多少|吗|呢/.test(um))
+      return ['这个问题……我也在思考。', '或许，答案就在路上。', '谁知道呢，走一步看一步吧。'][Math.floor(Math.random() * 3)];
+    return ['嗯……', '是呢。', '我在想……', '这感觉真好。'][Math.floor(Math.random() * 4)];
+  }
+
+  return '……';
 }
 
 // ----------------------------------------------------------
@@ -199,15 +233,12 @@ async function runDirector(userMessage: string | null): Promise<void> {
 
   console.log(`[Director] ${dirResult.reasoning}`);
 
-  // 执行发言
+  // 执行发言 —— 所有发言者都能看到用户消息
   for (let i = 0; i < dirResult.speakers.length; i++) {
     const charId = dirResult.speakers[i];
     const delay = i === 0 ? 500 : 800 + Math.random() * 1200;
-    await executeSpeaker(
-      charId,
-      i === 0 ? userMessage : null,
-      delay,
-    );
+    // 修复：所有发言者都能看到 userMessage，而不只是第一个
+    await executeSpeaker(charId, userMessage, delay);
   }
 
   // 尝试提取记忆

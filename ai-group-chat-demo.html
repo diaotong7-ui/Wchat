@@ -645,7 +645,7 @@ function showToast(text) {
 function extractTopics(text) {
   const t = text.toLowerCase();
   const topics = [];
-  if (/吃|饿|食|肉|面|饭|餐|菜|喝|奶茶|咖啡|甜点|烧烤|火锅|好吃|美食|味道/.test(t)) topics.push('food');
+  if (/吃|饿|食|肉|面|餐|菜|喝|奶茶|咖啡|甜点|烧烤|火锅|好吃|美食|味道/.test(t)) topics.push('food');
   if (/雨|湿|冷|天气|下雪|阴天|太阳|晒|热|温度/.test(t))               topics.push('weather');
   if (/迷路|路|方向|导航|地图|走|去|来|到|在哪/.test(t))              topics.push('location');
   if (/钱|贵|便宜|花费|价格|买|卖|付|花|预算|穷|富/.test(t))         topics.push('money');
@@ -653,7 +653,9 @@ function extractTopics(text) {
   if (/拍照|摄影|好看|美|丑|风景|景色|落日|夕阳|海|山/.test(t))       topics.push('scenery');
   if (/走|跑|动|累|快|慢|速度|等|急|时间|赶/.test(t))               topics.push('pace');
   if (/无聊|有趣|好玩|开心|难过|生气|累|舒服/.test(t))              topics.push('feeling');
-  if (/谁|什么|怎么|为什么|哪|多少|吗|呢/.test(t))                  topics.push('question');
+  // 新增：识别"在干嘛"类问题
+  if (/干嘛|干什么|在干|在做|大家|你们|你们在|在吗|有人|谁在/.test(t)) topics.push('what_doing');
+  if (/谁|什么|怎么|为什么|哪|多少|吗|呢|问/.test(t))                  topics.push('question');
   if (topics.length === 0) topics.push('general');
   return topics;
 }
@@ -675,11 +677,57 @@ function detectMood(text) {
 }
 
 // ============================================================
-// CHARACTER REPLY GENERATORS — each character reads userText & responds
+// 专项回复函数：真正回答用户在问什么
 // ============================================================
+
+// "在干嘛"类问题 — 每个角色回答自己正在做什么
+function genWhatDoingReply(charId) {
+  const ev = (state.currentEvent && state.currentEvent.text) ? state.currentEvent.text : '';
+  const evSnip = ev.replace('正在发生：','').replace('突发事件：','').slice(0, 10);
+
+  if (charId === 'luffy') {
+    const ans = [
+      `我？刚发现${evSnip}！超兴奋！！`,
+      `在想着等下吃什么！你呢？`,
+      `准备出发！你准备好了吗？`,
+      `超饿的！在找吃的！`,
+    ];
+    return ans[Math.floor(Math.random() * ans.length)];
+  }
+  if (charId === 'gojo') {
+    const ans = [
+      `我？在看你们表演。`,
+      `随便逛逛，有点无聊。`,
+      `在想今天去哪比较好玩。`,
+      `你们太慢了，我在等。`,
+    ];
+    return ans[Math.floor(Math.random() * ans.length)];
+  }
+  if (charId === 'daiyu') {
+    const ans = [
+      `我……在看风景，这边的云很好看。`,
+      `没干什么，就在想事情。`,
+      `有点累了，在休息。你们呢？`,
+      `在看大家聊天，挺有意思的。`,
+    ];
+    return ans[Math.floor(Math.random() * ans.length)];
+  }
+  return '在聊天呢～';
+}
+
+// ============================================================
+// CHARACTER REPLY GENERATORS — 真正理解用户消息
+// ============================================================
+// 核心原则：必须回应用户说了什么，不能瞎说不相关的
 function generateReply(charId, userText, topics, mood) {
   const snippet = extractSnippet(userText);
   const topic = topics[0];
+  const t = (userText || '').toLowerCase();
+
+  // ★★★ 最高优先级：用户直接提问"在干嘛/大家在干嘛" ★★★
+  if (/干嘛|干什么|在干|在做|大家|你们在/.test(t)) {
+    return genWhatDoingReply(charId);
+  }
 
   // 路飞：热情冲动，围绕"吃"和"行动"
   if (charId === 'luffy') {
@@ -720,6 +768,10 @@ function generateReply(charId, userText, topics, mood) {
       question:[
         `这个嘛……不知道！`, `问得好！但我也不知道！`,
         `${snippet}？去问悟吧！`, `管他呢，先走再说！`
+      ],
+      what_doing: [
+        `我？我在想吃什么！！`, `准备出发！！你呢？`,
+        `超饿的！在找吃的！`, `我一直在准备冒险！`
       ],
       general: [
         `哇！真的吗！`, `好！！`, `那就去吧！`, `没问题！`,
@@ -769,6 +821,9 @@ function generateReply(charId, userText, topics, mood) {
         `${snippet}？问得好，但我不会告诉你。`, `这个……你猜？`,
         `想知道？求我啊。`, `答案就在你心里。（开玩笑的）`
       ],
+      what_doing: [
+        `我？在看戏。`, `随便逛逛，不关你事。`, `你们太慢了，我在等。`, `寻找有趣的事。`
+      ],
       general: [
         `哦？`, `有趣。`, `随便。`, `还行吧。`, `我早知道。`,
         `你说了算。`, `有点意思。`, `就这样吧。`
@@ -816,6 +871,10 @@ function generateReply(charId, userText, topics, mood) {
       question:[
         `${snippet}……我也在思考这个问题。`, `或许，答案就在路上。`,
         `嗯，${snippet}……让我想想。`, `谁知道呢，走一步看一步吧。`
+      ],
+      what_doing: [
+        `我……在看风景。`, `没干什么，就在想事情。`, 
+        `你们呢？`, `倒也清净。`
       ],
       general: [
         `嗯……`, `是呢。`, `我在想……`, `这感觉真好。`, `有点感动。`,
@@ -870,33 +929,94 @@ async function charSpeak(charId, userText, topic, delay, isFollowup = false, pre
 }
 
 // Director: decides who speaks and in what order
+// 发言规则：
+//  1. 同一个角色不能连续发言超过1次
+//  2. 最近3条消息出现过的角色降低发言概率
+//  3. 优先选择未发言角色参与互动
 async function directorRun(topic, triggerCharId = null, userText = '') {
   if (state.isTyping) return;
   state.isTyping = true;
 
   const chars = ['luffy', 'gojo', 'daiyu'];
-  // weights: luffy fastest, gojo moderate, daiyu slowest
-  const delays = { luffy: rand(400,900), gojo: rand(1200,2200), daiyu: rand(2000,3500) };
 
-  // 1. Primary speaker — responds to user message content
-  const primary = triggerCharId || pick(chars);
-  const first = await charSpeak(primary, userText, topic, delays[primary]);
+  // 最近3条消息的发言者（用于降权）
+  const recentMsgs = state.messages.slice(-3);
+  const recentSenders = recentMsgs.map(m => m.sender).filter(s => s !== 'user' && s !== undefined);
 
-  // 2. With 65% chance, one more reacts (can be followup to first OR user)
-  if (Math.random() < 0.65) {
-    const others = chars.filter(c => c !== primary);
-    const secondary = pick(others);
-    await sleep(rand(300, 800));
-    // 30% chance to directly address user's message, 70% followup to first speaker
-    const isFollowup = Math.random() < 0.7;
-    await charSpeak(secondary, userText, topic, delays[secondary], isFollowup, first.charId, first.text);
+  // 最后一条消息的发言者（防止连续发言）
+  const lastMsg = state.messages[state.messages.length - 1];
+  const lastSender = (lastMsg && lastMsg.sender !== 'user') ? lastMsg.sender : null;
+
+  // 事件话题偏好权重
+  const topicPrefs = {
+    food:     { luffy: 0.9, gojo: 0.6, daiyu: 0.5 },
+    weather:   { luffy: 0.5, gojo: 0.4, daiyu: 0.9 },
+    location:  { luffy: 0.6, gojo: 0.5, daiyu: 0.8 },
+    lost:      { luffy: 0.3, gojo: 0.7, daiyu: 0.5 },
+    money:     { luffy: 0.9, gojo: 0.5, daiyu: 0.4 },
+    rest:      { luffy: 0.5, gojo: 0.6, daiyu: 0.9 },
+    scenery:   { luffy: 0.4, gojo: 0.7, daiyu: 0.9 },
+    pace:      { luffy: 0.8, gojo: 0.5, daiyu: 0.4 },
+    feeling:   { luffy: 0.5, gojo: 0.4, daiyu: 0.9 },
+    what_doing:{ luffy: 0.8, gojo: 0.6, daiyu: 0.7 },
+    question:  { luffy: 0.5, gojo: 0.7, daiyu: 0.8 },
+    general:   { luffy: 0.7, gojo: 0.6, daiyu: 0.6 },
+  };
+  const prefs = topicPrefs[topic] || topicPrefs.general;
+
+  // 计算最终权重
+  const weighted = chars.map(c => {
+    let w = prefs[c] || 0.5;
+    // 规则2：最近3条出现过的角色降权
+    if (recentSenders.includes(c)) w *= 0.3;
+    // 规则1：最后发言者额外降权（防止连续发言）
+    if (c === lastSender) w *= 0.05;
+    return { char: c, w };
+  });
+
+  // 规则3：如果有未发言角色（最近3条都没出现），大幅提高权重
+  const silentChars = chars.filter(c => !recentSenders.includes(c));
+  if (silentChars.length > 0) {
+    weighted.forEach(item => {
+      if (silentChars.includes(item.char)) item.w += 0.5;
+    });
   }
 
-  // 3. With 20% chance, third also pipes in
+  weighted.sort((a, b) => b.w - a.w);
+
+  // 选主发言人（带随机性）
+  const primaryRoll = Math.random();
+  let primary;
+  if (primaryRoll < 0.5) primary = weighted[0].char;
+  else if (primaryRoll < 0.8) primary = weighted[1] ? weighted[1].char : weighted[0].char;
+  else primary = weighted[2] ? weighted[2].char : weighted[0].char;
+
+  // 双重保险：确保主发言人不是 lastSender
+  if (primary === lastSender && weighted.length > 1) primary = weighted[1].char;
+
+  // 1. 主发言人回复（传入 userText）
+  const delays = { luffy: rand(400,900), gojo: rand(1200,2200), daiyu: rand(2000,3500) };
+  const first = await charSpeak(primary, userText, topic, delays[primary]);
+
+  // 2. 第二位发言者（65%概率）
+  if (Math.random() < 0.65) {
+    const others = chars.filter(c => c !== primary && c !== lastSender);
+    if (others.length > 0) {
+      const secondary = others[Math.floor(Math.random() * others.length)];
+      await sleep(300 + Math.random() * 800);
+      const isFollowup = Math.random() < 0.7;
+      await charSpeak(secondary, userText, topic, delays[secondary], isFollowup, first.charId, first.text);
+    }
+  }
+
+  // 3. 第三位发言者（20%概率）
   if (Math.random() < 0.20) {
-    const third = chars.find(c => c !== primary);
-    await sleep(rand(500, 1000));
-    await charSpeak(third, userText, topic, rand(300, 600), true, first.charId, first.text);
+    const speaking = state.messages.slice(-3).map(m => m.sender).filter(s => s !== 'user');
+    const third = chars.find(c => !speaking.includes(c));
+    if (third) {
+      await sleep(500 + Math.random() * 1000);
+      await charSpeak(third, userText, topic, rand(300, 600), true, first.charId, first.text);
+    }
   }
 
   state.isTyping = false;
