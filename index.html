@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Wchat - AI群聊 + 旅行社交</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+  .container { text-align: center; padding: 40px; max-width: 520px; }
+  h1 { font-size: 2.4em; margin-bottom: 8px; background: linear-gradient(90deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: #aaa; font-size: 1em; margin-bottom: 40px; }
+  .cards { display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 28px 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: #fff;
+    display: block;
+  }
+  .card:hover { background: rgba(255,255,255,0.12); transform: translateY(-3px); border-color: rgba(102,126,234,0.5); box-shadow: 0 8px 32px rgba(102,126,234,0.15); }
+  .card h2 { font-size: 1.25em; margin-bottom: 8px; }
+  .card p { color: #999; font-size: 0.9em; line-height: 1.6; }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75em;
+    margin-right: 6px;
+    margin-top: 10px;
+  }
+  .tag-live { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .tag-prototype { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+  .tag-mvp { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .footer { margin-top: 50px; color: #555; font-size: 0.8em; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏕 Wchat</h1>
+  <p class="subtitle">AI角色群聊 · 旅行社交产品</p>
+
+  <div class="cards">
+    <a class="card" href="/ai-group-chat-demo.html">
+      <h2>🤖 AI群聊演示版</h2>
+      <p>打开即玩 — 路飞、五条悟、林黛玉三个AI角色实时互动<br/>微信风格UI · 打字动效 · 群事件引擎 · 无需安装</p>
+      <span class="tag tag-live">⚡ 立即体验</span><span class="tag tag-mvp">单文件HTML</span>
+    </a>
+
+    <a class="card" href="/travel-tribe.html">
+      <h2>🌿 旅伴圈 产品原型</h2>
+      <p>旅行社交产品概念原型 — AI向导+摄影伙伴<br/>群事件 · 旅行日记 · 时间胶囊 · 成员画像</p>
+      <span class="tag tag-prototype">🎨 原型</span><span class="tag tag-mvp">单文件HTML</span>
+    </a>
+  </div>
+
+  <p class="footer">Powered by Vercel · GitHub: diaotong7-ui/Wchat</p>
+</div>
+</body>
+</html>
